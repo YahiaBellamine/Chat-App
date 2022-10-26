@@ -16,7 +16,7 @@ static Client* getClient(const char * dest_name, Client * clients){
 }
 
 /* Read the command of client */
-static void read_command(const char * buffer, Client* clients, Client* expediteur){
+static void read_command(const char * buffer, Client* clients, Client* expediteur,int actual){
    char * str = (char *)malloc(BUF_SIZE*sizeof(char));
    strcpy(str, buffer);
    
@@ -30,26 +30,48 @@ static void read_command(const char * buffer, Client* clients, Client* expediteu
    char * token = strtok(str, delim);
 
    int i=0;
-   while(token != NULL){
-      if(i==0){
-         strcpy(command, token);
-      }else if(i==1){
-         strcpy(destinataire, token);
-      }else if(i==2){
-         strcpy(message, token);
-         strcat(message, " ");
-      }else{
-         strcat(message, token);
-         strcat(message, " ");
+   strcpy(command, token);
+   if(strcmp(command, "/send")==0)
+   {
+      printf("sendok");
+      while(token != NULL)
+      {
+         if(i==1){
+            strcpy(destinataire, token);
+         }else if(i==2){
+            strcpy(message, token);
+            strcat(message, " ");
+         }else{
+            strcat(message, token);
+            strcat(message, " ");
+         }
+         token = strtok(NULL, delim);
+         i++;
       }
-      token = strtok(NULL, delim);
-      i++;
    }
-
-   exec_command(command, destinataire, message, clients, expediteur);
+   else if(strcmp(command, "/public")==0)
+   {
+      printf("publicok");
+      strcpy(destinataire,"");
+      while(token != NULL)
+      {
+         if(i==1){
+            strcpy(message, token);
+            strcat(message, " ");
+         }else{
+            strcat(message, token);
+            strcat(message, " ");
+         }
+         token = strtok(NULL, delim);
+         i++;
+      }
+   }
+   
+   //printf("%s  %s  %s",command,destinataire,message);
+   exec_command(command, destinataire, message, clients, expediteur,actual);
 }
 
-static void exec_command(const char * command, const char * destinataire, const char * message, Client* clients, Client* expediteur){
+static void exec_command(const char * command, const char * destinataire, const char * message, Client* clients, Client* expediteur,int actual){
    if(strcmp(command, "/send")==0){
       Client * dest = getClient(destinataire, clients);
       if(dest != NULL){
@@ -59,6 +81,23 @@ static void exec_command(const char * command, const char * destinataire, const 
          strcat(str, message);
          write_client(dest->sock, str);
       }
+   }
+   else if(strcmp(command, "/public")==0){
+       //Client * dest = getClient(destinataire, clients);
+       char str[BUF_SIZE];
+       strcpy(str, expediteur->name);
+       strcat(str, " : ");
+       strcat(str, message);
+       for(int i=0;i<actual;i++)
+       {
+         if(strcmp(expediteur->name,clients[i].name)==0) continue;
+         write_client(clients[i].sock, str);
+       }
+       
+   
+       //send_message_to_all_clients(clients, *expediteur, actual, str, 1);
+      
+      
    }
 }
 
@@ -181,7 +220,7 @@ static void app(void)
                Client client = clients[i];
                int c = read_client(clients[i].sock, buffer);
                if(c>0){
-                  read_command(buffer, clients, &client);
+                  read_command(buffer, clients, &client,actual);
                   //print_message_serveur(client, buffer);
                }
                

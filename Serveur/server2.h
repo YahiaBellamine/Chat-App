@@ -39,8 +39,8 @@ typedef struct in_addr IN_ADDR;
 #include "client2.h"
 
 static Client* getClient(const char * dest_name, Client * clients);
-static void read_command(const char * buffer, Client* clients, Client* expediteur);
-static void exec_command(const char * command, const char * destinataire, const char * message, Client* clients, Client* expediteur);
+static void read_command(const char * buffer, Client* clients, Client* expediteur,int actual);
+static void exec_command(const char * command, const char * destinataire, const char * message, Client* clients, Client* expediteur,int actua;);
 static void print_message_serveur(Client client, const char * buffer);
 static void print_connection_serveur(Client client, const char * status);
 static void init(void);
