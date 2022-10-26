@@ -18,7 +18,7 @@ static Client* getClient(const char * dest_name, Client * clients){
 
 static Channel* getChannel(const char * channel_name, Channel * channels, Client * client){
    for(int i=0; i<MAX_CHANNELS; i++){
-      if(strcmp(channels[i].name, channel_name)==0 && strcmp(client.name, client.channel.owner.name)==0){
+      if(strcmp(channels[i].name, channel_name)==0 && strcmp(client->name, client->channel->owner)==0){
          return &channels[i];
       }
    }
@@ -53,31 +53,31 @@ static void read_command(const char * buffer, Client * expediteur, Client * clie
    exec_command(command, arg, expediteur, clients, nb_clients, channels, nb_channels);
 }
 
-static void exec_command(const char * command, const char * arg, const char * expediteur,  Client* clients, int * nb_clients, Channel * channels, int * nb_channels){
+static void exec_command(const char * command, const char * arg, Client * expediteur,  Client* clients, int * nb_clients, Channel * channels, int * nb_channels){
    if(strcmp(command, "/createchannel")==0){
       Channel channel;
       strcpy(channel.name, arg);
       channel.nb_recipients = 0;
-      channel.expediteur = expediteur;
+      strcpy(channel.owner, expediteur->name);
       channels[*nb_channels] = channel;
       *nb_channels++;
    } else if (strcmp(command, "/addrecipient")==0) {
-      if(strcmp(expediteur.name, expediteur.channel.owner.name)==0){
-         Channel * channel = expediteur.channel;
-         channel->recipients[channel->nb_recipients] = getClient(arg, clients);
+      if(strcmp(expediteur->name, expediteur->channel->owner)==0){
+         Channel * channel = expediteur->channel;
+         strcpy(channel->recipients[channel->nb_recipients], getClient(arg, clients)->name);
          channel->nb_recipients++;
       }
    } else if (strcmp(command, "/setchannel")==0){
       if(strcmp(arg, "public")==0){
-         expediteur.channel = NULL;
+         expediteur->channel = NULL;
       } else {
-         expediteur.channel = getChannel(arg, channels, expediteur);
+         expediteur->channel = getChannel(arg, channels, expediteur);
       }
    } else if(strcmp(command, "/send")==0){
-      Channel * channel = expediteur.channel;
+      Channel * channel = expediteur->channel;
       if(channel != NULL){
          for(int i=0; i<channel->nb_recipients; i++){
-            Client * destinataire = channel->recipients[i];
+            Client * destinataire = getClient(channel->recipients[i], clients);
             char str[BUF_SIZE];
             strcpy(str, expediteur->name);
             strcat(str, " : ");
@@ -85,28 +85,11 @@ static void exec_command(const char * command, const char * arg, const char * ex
             write_client(destinataire->sock, str);
          }
       } else {
-         send_message_to_all_clients(clients, expediteur, *nb_clients, arg, 0);
+         send_message_to_all_clients(clients, *expediteur, *nb_clients, arg, 0);
       }
    } else {
-      const char * help = "Voici la liste des commandes possibles :\n\t/createchannel NomChannel => qui permet de créer un nouveau canal (privé, groupe).\n\t/addrecipient NomDestinataire => qui permet d'ajouter une personne dans le canal.\n\t/setchannel NomChannel => qui permet de choisir de communiquer sur le canal NomChannel.\n\t/send Message => qui permet d'envoyer un message dans le canal choisi avec /setchannel.\n\nPar défault vous communiquez sur le canal public (message envoyé à tous les utilisateurs).\nPour revenir au canal public entrez : /setchannel public\n"
+      const char * help = "Voici la liste des commandes possibles :\n\t/createchannel NomChannel => qui permet de créer un nouveau canal (privé, groupe).\n\t/addrecipient NomDestinataire => qui permet d'ajouter une personne dans le canal.\n\t/setchannel NomChannel => qui permet de choisir de communiquer sur le canal NomChannel.\n\t/send Message => qui permet d'envoyer un message dans le canal choisi avec /setchannel.\n\nPar défault vous communiquez sur le canal public (message envoyé à tous les utilisateurs).\nPour revenir au canal public entrez : /setchannel public\n";
       write_client(expediteur->sock, help);
-   }
-   else if(strcmp(command, "/public")==0){
-       //Client * dest = getClient(destinataire, clients);
-       char str[BUF_SIZE];
-       strcpy(str, expediteur->name);
-       strcat(str, " : ");
-       strcat(str, message);
-       for(int i=0;i<actual;i++)
-       {
-         if(strcmp(expediteur->name,clients[i].name)==0) continue;
-         write_client(clients[i].sock, str);
-       }
-       
-   
-       //send_message_to_all_clients(clients, *expediteur, actual, str, 1);
-      
-      
    }
 }
 
@@ -233,7 +216,7 @@ static void app(void)
                Client client = clients[i];
                int c = read_client(clients[i].sock, buffer);
                if(c>0){
-                  read_command(buffer, client, clients, &actual,channels, &nb_channels);
+                  read_command(buffer, &client, clients, &actual,channels, &nb_channels);
                   //print_message_serveur(client, buffer);
                }
                
