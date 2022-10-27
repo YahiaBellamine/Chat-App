@@ -3,5 +3,5 @@ all:
 	$(MAKE) -C Serveur
 
 clean:
-	rm ./Client/*.o
-	rm ./Serveur/*.o
+	rm ./Client/*.o ./Client/client
+	rm ./Serveur/*.o ./Serveur/serveur

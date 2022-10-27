@@ -7,8 +7,8 @@ typedef struct
 {
     char name[BUF_SIZE];
     int nb_recipients;
-    char * owner;
-    char * recipients[MAX_CLIENTS];
+    char owner[BUF_SIZE];
+    char recipients[MAX_CLIENTS][BUF_SIZE];
 }Channel;
 
 #endif /* guard */
