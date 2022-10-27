@@ -49,7 +49,7 @@ static void read_command(const char * buffer, Client * expediteur, Client * clie
          strcat(arg, " ");
       }
    }
-
+   free(str);
    exec_command(command, arg, expediteur, clients, nb_clients, channels, nb_channels);
 }
 
@@ -73,18 +73,48 @@ static void exec_command(const char * command, const char * arg, Client * expedi
       } else {
          expediteur->channel = getChannel(arg, channels, expediteur);
       }
-   } else if(strcmp(command, "/send")==0){
+   } else if(strcmp(command, "/send")==0)
+      {
       Channel * channel = expediteur->channel;
       if(channel != NULL){
-         for(int i=0; i<channel->nb_recipients; i++){
+         for(int i=0; i<channel->nb_recipients; i++)
+         {
             Client * destinataire = getClient(channel->recipients[i], clients);
             char str[BUF_SIZE];
             strcpy(str, expediteur->name);
             strcat(str, " : ");
             strcat(str, arg);
-            write_client(destinataire->sock, str);
+            if(destinataire!=NULL)
+            {
+                write_client(destinataire->sock, str);
+            }
+            else
+            {
+               stock_unread_message(str,channel->recipients[i],expediteur);
+            }
          }
-      } else {
+      } 
+      // else if(strcmp(command, "/private")==0) // cette fonction sert a tester l'historique
+      // {
+      
+      //    for(int i=0; i<channel->nb_recipients; i++)
+      //    {
+      //       Client * destinataire = getClient(channel->recipients[i], clients);
+      //       char str[BUF_SIZE];
+      //       strcpy(str, expediteur->name);
+      //       strcat(str, " : ");
+      //       strcat(str, arg);
+      //       if(destinataire!=NULL)
+      //       {
+      //           write_client(destinataire->sock, str);
+      //       }
+      //       else
+      //       {
+      //          stock_unread_message(str,channel->recipients[i]);
+      //       }
+      //    }
+      // } 
+      else {
          send_message_to_all_clients(clients, *expediteur, *nb_clients, arg, 0);
       }
    } else {
@@ -93,6 +123,68 @@ static void exec_command(const char * command, const char * arg, Client * expedi
    }
 }
 
+static void stock_unread_message(char str[BUF_SIZE],const char * dest_name,Client* expediteur)
+{
+   char arg[BUF_SIZE+5];
+   strcpy(arg,dest_name);
+   strcat(arg,".txt");
+    FILE* fp = fopen(arg,"a+");
+    if(fp==NULL)
+    {     
+        fclose(fp);
+        //   cree par exemple bob.txt
+         fp = fopen(arg,"w");            
+         if(fp==NULL)    
+         {   
+            perror("Error: ");
+        // return(-1);
+         }
+    }
+    int len=strlen(expediteur->name);
+    int i;
+    for(i=0;i<len;i++) fputc(expediteur->name[i],fp);
+    fputc(':',fp);
+    len=strlen(str);
+    for(i=0;i<len;i++) fputc(str[i],fp);
+    fputc('\n',fp);
+    fclose(fp);
+}
+
+static void print_unread_message(Client* client)
+{
+   char arg[BUF_SIZE+5];
+   strcpy(arg,client->name);
+   strcat(arg,".txt");
+   FILE* fp = fopen(arg,"r");
+   if(fp!=NULL)
+   {
+      char str[BUF_SIZE]={""};
+      char symbol;
+      int i=0;
+      while((symbol=fgetc(fp))!=EOF)
+      {
+         str[i]=symbol;
+         i++;
+         if(symbol=='\n')
+         {
+            write_client(client->sock, str);
+            //strcpy(str,"");
+            memset(str,0,sizeof(str)/sizeof(char)); 
+            i=0;
+         }
+         
+      }
+   }
+   fclose(fp);
+   remove(arg);
+   //int ret=remove(arg);
+   //    if (ret== 0) {
+   //      printf("The file is deleted successfully.");
+   //  } else {
+   //      printf("The file is not deleted.");
+   //  }
+   
+}
 static void print_connection_serveur(Client client, const char * status){
    char message[BUF_SIZE];
    message[0] = 0;
