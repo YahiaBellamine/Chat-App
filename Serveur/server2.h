@@ -39,13 +39,13 @@ typedef struct in_addr IN_ADDR;
 #include "client2.h"
 #include "channel.h"
 
-static Client* getClient(const char * dest_name, Client * clients, int * nb_clients);
-static Channel* getChannel(const char * channel_name, Channel ** channels, int * nb_channels);
+static Client* getClient(const char * client_name);
+static Channel* getChannel(const char * channel_name);
 static int inChannel(Client * client, Channel * channel);
-static void read_command(const char * buffer, Client * expediteur, Client * clients, int * nb_clients, Channel ** channels, int * nb_channels);
-static void exec_command(const char * command, char * arg, Client * expediteur,  Client* clients, int * nb_clients, Channel ** channels, int * nb_channels);
-static void print_message_serveur(Client client, const char * buffer);
-static void print_connection_serveur(Client client, const char * status);
+static void read_command(const char * buffer, Client * expediteur);
+static void exec_command(const char * command, char * arg, Client * expediteur);
+static void print_message_serveur(Client * client, const char * buffer);
+static void print_connection_serveur(Client * client, const char * status);
 static void init(void);
 static void end(void);
 static void app(void);
@@ -53,8 +53,11 @@ static int init_connection(void);
 static void end_connection(int sock);
 static int read_client(SOCKET sock, char *buffer);
 static void write_client(SOCKET sock, const char *buffer);
-static void send_message_to_all_clients(Client *clients, Client client, int actual, const char *buffer, char from_server);
-static void remove_client(Client *clients, int to_remove, int *actual);
-static void clear_clients(Client *clients, int actual);
+static void send_message_to_all_clients(Client client, const char *buffer, char from_server);
+static void remove_client();
+static void clear_clients();
+static void free_memory();
+static void load_data();
+static void store_data(int code);
 
 #endif /* guard */

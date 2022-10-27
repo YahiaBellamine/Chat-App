@@ -1,0 +1,9 @@
+(test) Alice : Hello !
+(test) Bob : Hi Alice !
+(test) Alice : How are you ?
+(test) Bob : Fine, and you
+(test) Alice : Bla bla !
+(test) Alice : Hello !
+(test) Alice : hey
+(test) Alice : hello !
+(test) Bob : hi !

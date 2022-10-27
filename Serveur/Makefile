@@ -10,4 +10,4 @@ serveur: ${OBJ_SERVEUR}
 	${CC} -o $@ $^
 
 server2.o: server2.c
-	${CC} -c $^
+	${CC} -c $^ -g
