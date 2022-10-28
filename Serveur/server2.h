@@ -59,5 +59,6 @@ static void clear_clients();
 static void free_memory();
 static void load_data();
 static void store_data(int code);
+static void getState();
 
 #endif /* guard */

@@ -7,3 +7,5 @@
 (test) Alice : hey
 (test) Alice : hello !
 (test) Bob : hi !
+(test) Alice : Hello !
+(test) Bob : Hey

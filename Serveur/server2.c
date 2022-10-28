@@ -49,6 +49,7 @@ static int inChannel(Client * client, Channel * channel){
 
 /* Read the command of client */
 static void read_command(const char * buffer, Client * expediteur){
+   getState();
    char str[BUF_SIZE];
    strcpy(str, buffer);
    
@@ -70,7 +71,7 @@ static void read_command(const char * buffer, Client * expediteur){
       token = strtok(NULL, delim);
       i++;
    }
-   arg[strcspn(arg, "\n")] = '\0';
+   arg[strlen(arg)-1] = '\0';
 
    exec_command(command, arg, expediteur);
 }
@@ -460,25 +461,27 @@ static void write_client(SOCKET sock, const char *buffer)
 }
 
 static void getState(){
+   printf("------------------------------\n");
    for (int i = 0; i < nb_clients; i++)
    {
       printf("client %d\n", i+1);
       printf("*sock : %d\n", clients[i]->sock);
-      printf("*name : %s\n", clients[i]->name);
+      printf("*name : %s.\n", clients[i]->name);
       printf("*channel : %s\n\n", clients[i]->channel->name);
    }
    for (int i = 0; i < nb_channels; i++)
    {
       printf("Channel %d\n", i+1);
-      printf("*name : %s\n", channels[i]->name);
+      printf("*name : %s.\n", channels[i]->name);
       printf("*nb_recipients : %d\n", channels[i]->nb_recipients);
-      printf("*owner : %s\n", channels[i]->owner);
+      printf("*owner : %s.\n", channels[i]->owner);
       printf("*recipients :\n");
       for (int j = 0; j < channels[i]->nb_recipients; j++)
       {
          printf("\t- recipient %d: %s.\n", j+1, channels[i]->recipients[j]);
       }
-   }  
+   }
+   printf("------------------------------\n");  
    printf("\n");
 }
 
@@ -595,13 +598,11 @@ static void load_data() {
          }else if (j==1) {
             strcpy(c->name, token);
          }else {
-            char channel_name[BUF_SIZE];
-            strcpy(channel_name, token);
-            channel_name[strcspn(channel_name, "\n")] = 0;
-            if(strcmp(channel_name, "(null)")==0){
+            token[strlen(token)-1] = '\0';
+            if(strcmp(token, "(null)")==0){
                c->channel = NULL;
             } else {
-               c->channel = getChannel(channel_name);
+               c->channel = getChannel(token);
             }
          }
          token = strtok(NULL, delim);
