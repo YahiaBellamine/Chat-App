@@ -154,7 +154,6 @@ static void exec_command(const char * command, char * arg, Client * expediteur){
                strcat(str, expediteur->name);
                strcat(str, " : ");
                strcat(str, arg);
-               write_client(destinataire->sock, str);
                char file_name[BUF_SIZE];
                strcpy(file_name, "./Historiques/");
                strcat(file_name, channel->name);
@@ -167,6 +166,11 @@ static void exec_command(const char * command, char * arg, Client * expediteur){
                }
                fprintf(f, "%s\n", str);
                fclose(f);
+               if(destinataire != NULL){
+                  write_client(destinataire->sock, str);
+               } else {
+                  store_unread_message(str, channel->recipients[i]);
+               }
             }
          }
       } else {
@@ -202,6 +206,47 @@ static void exec_command(const char * command, char * arg, Client * expediteur){
    } else {
       write_client(expediteur->sock, help);
    }
+}
+
+static void print_unread_messages(Client * client){
+   char file_name[BUF_SIZE];
+   strcpy(file_name, "./Non_lus/");
+   strcat(file_name, client->name);
+   strcat(file_name, ".txt");
+   FILE * fp = fopen(file_name, "r");
+   if(fp==NULL){
+      write_client(client->sock, "Vous n'avez aucun message non lu.");
+   } else {
+      char line[BUF_SIZE]="";
+      char c;
+      int i=0;
+      while ((c=fgetc(fp))!=EOF)
+      {
+         line[i] = c;
+         i++;
+         if(c=='\n'){
+            line[i-1] = 0;
+            write_client(client->sock, line);
+            memset(line, 0, BUF_SIZE);
+            i=0;
+         }
+      }
+      fclose(fp);
+   }
+   remove(file_name);
+}
+
+static void store_unread_message(const char * unread_message, const char * destinataire){
+   char file_name[BUF_SIZE];
+   strcpy(file_name, "./Non_lus/");
+   strcat(file_name, destinataire);
+   strcat(file_name, ".txt");
+   FILE * fp = fopen(file_name, "a");
+   if(fp == NULL){
+      perror("Erreur d'ouverture du fichier.");
+   }
+   fprintf(fp, "%s\n",unread_message);
+   fclose(fp);
 }
 
 static void print_connection_serveur(Client * client, const char * status){
@@ -313,9 +358,11 @@ static void app(void)
             nb_clients++;
             write_client(client->sock, help);
             print_connection_serveur(client, " connected ! ");
+            print_unread_messages(client);
          }else{
             write_client(c->sock, help);
             print_connection_serveur(c, " connected ! ");
+            print_unread_messages(c);
          }
       }
       else

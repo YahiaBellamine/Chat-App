@@ -44,6 +44,8 @@ static Channel* getChannel(const char * channel_name);
 static int inChannel(Client * client, Channel * channel);
 static void read_command(const char * buffer, Client * expediteur);
 static void exec_command(const char * command, char * arg, Client * expediteur);
+static void print_unread_messages(Client * client);
+static void store_unread_message(const char * unread_message, const char * destinataire);
 static void print_message_serveur(Client * client, const char * buffer);
 static void print_connection_serveur(Client * client, const char * status);
 static void init(void);
