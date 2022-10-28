@@ -38,16 +38,19 @@ typedef struct in_addr IN_ADDR;
 
 #include "client2.h"
 #include "channel.h"
+#include "dm.h"
 
 static Client* getClient(const char * client_name);
 static Channel* getChannel(const char * channel_name);
 static int inChannel(Client * client, Channel * channel);
+static int inDMs(Client * client, DM * direct_message);
 static void read_command(const char * buffer, Client * expediteur);
 static void exec_command(const char * command, char * arg, Client * expediteur);
 static void print_unread_messages(Client * client);
 static void store_unread_message(const char * unread_message, const char * destinataire);
 static void print_message_serveur(Client * client, const char * buffer);
 static void print_connection_serveur(Client * client, const char * status);
+static void list_messages(Client *client);
 static void init(void);
 static void end(void);
 static void app(void);

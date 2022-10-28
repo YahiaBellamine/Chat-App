@@ -7,14 +7,16 @@
 #include "server2.h"
 #include "client2.h"
 #include "channel.h"
+#include "dm.h"
 
 int nb_clients = 0;
 Client * clients[MAX_CLIENTS];
 int nb_channels = 0;
 Channel * channels[MAX_CHANNELS];
+int nb_DMs = 0;
+DM * direct_messages[MAX_DMS];
 
 const char * help = "Voici la liste des commandes possibles :\n\t/sendDM Destinataire Message => qui permet d'envoyer un message privé au Destinataire.\n\t/createchannel NomChannel => qui permet de créer un nouveau canal.\n\t/addrecipient NomDestinataire => qui permet d'ajouter une personne dans le canal choisi avec /setchannel.\n\t/setchannel NomChannel => qui permet de choisir de communiquer sur le canal NomChannel.\n\t/send Message => qui permet d'envoyer un message dans le canal choisi avec /setchannel.\n\nPar défault vous communiquez sur le canal public (message envoyé à tous les utilisateurs).\nPour revenir au canal public entrez : /setchannel public\n";
-
 
 static Client* getClient(const char * client_name){
    for(int i=0; i< nb_clients; i++){
@@ -34,6 +36,15 @@ static Channel* getChannel(const char * channel_name){
    return NULL;
 }
 
+static DM* getDM(const char * dm_name){
+   for(int i=0; i< nbDM; i++){
+      if(strcmp(direct_messages[i]->name, dm_name)==0){
+         return direct_messages[i];
+      }
+   }
+   return NULL;
+}
+
 static int inChannel(Client * client, Channel * channel){
    if(strcmp(client->name, channel->owner)==0){
       return 1;
@@ -42,6 +53,15 @@ static int inChannel(Client * client, Channel * channel){
          if(strcmp(client->name, channel->recipients[i])==0){
             return 1;
          }
+      }
+   }
+   return 0;
+}
+
+static int inDMs(Client * client, DM * direct_message){
+   for(int i=0; i<2; i++){
+      if(strcmp(client->name, direct_message->recipients[i])==0){
+         return 1;
       }
    }
    return 0;
@@ -197,12 +217,37 @@ static void exec_command(const char * command, char * arg, Client * expediteur){
       }
       message[strlen(message)-1] = '\0';
 
+      char dm_name[BUF_SIZE];
+      if (strcmp(expediteur->name, dest)<0)
+      {
+         strcpy(dm_name, expediteur->name);
+         strcat(dm_name, dest);
+      }else {
+         strcpy(dm_name, dest);
+         strcat(dm_name, expediteur->name);
+      }
+      
+      DM * direct_message = getDM(dm_name);
+
+      if(direct_message == NULL) {
+         direct_message = (DM *)malloc(sizeof(DM));
+         strcpy(direct_message->name, dm_name);
+         strcpy(direct_message->recipients[0], expediteur->name);
+         strcpy(direct_message->recipients[1], dest);
+         direct_messages[nb_DMs] = 
+      }
+
       Client * destinataire = getClient(dest);
-      char str[BUF_SIZE];
-      strcpy(str, expediteur->name);
-      strcat(str, " : ");
-      strcat(str, message);
-      write_client(destinataire->sock, str);
+      if(destinataire != NULL){
+         char str[BUF_SIZE];
+         strcpy(str, expediteur->name);
+         strcat(str, " : ");
+         strcat(str, message);
+         write_client(destinataire->sock, str);
+      } else {
+         store_unread_message(str, channel->recipients[i]);
+      }
+      
    } else {
       write_client(expediteur->sock, help);
    }
@@ -217,8 +262,23 @@ static void print_unread_messages(Client * client){
    if(fp==NULL){
       write_client(client->sock, "Vous n'avez aucun message non lu.");
    } else {
+      int nb_messages_non_lus = 0;
       char line[BUF_SIZE]="";
-      char c;
+      char c; 
+      while ((c=fgetc(fp))!=EOF)
+      {
+         if(c=='\n'){
+            nb_messages_non_lus++;
+         }
+      }
+      char nbNonLus[8];
+      sprintf(nbNonLus, "%d", nb_messages_non_lus);
+      char notif[BUF_SIZE];
+      strcpy(notif, "Vous avez ");
+      strcat(notif, nbNonLus);
+      strcat(notif, " message(s) non lus:\n");
+      write_client(client->sock, notif);
+      fseek(fp, 0, SEEK_SET);
       int i=0;
       while ((c=fgetc(fp))!=EOF)
       {
@@ -255,6 +315,36 @@ static void print_connection_serveur(Client * client, const char * status){
    strncpy(message, client->name, BUF_SIZE - 1);
    strncat(message, status, sizeof message - strlen(message) - 1);
    printf("%s\n", message);
+}
+
+static void list_messages(Client *client){
+   write_client(client->sock, "Liste des conversations :\n");
+   int exists = 0;
+   for (int i = 0; i < nb_channels; i++)
+   {
+      if(inChannel(client, channels[i])){
+         exists = 1;
+         char channel_name[BUF_SIZE];
+         strcpy(channel_name, "🟢 ");
+         strcat(channel_name, channels[i]->name);
+         write_client(client->sock, channel_name);
+      }
+   }
+
+   for (int i = 0; i < nb_DMs; i++)
+   {
+      if(inDMs(client, direct_messages[i])){
+         exists = 1;
+         char channel_name[BUF_SIZE];
+         strcpy(channel_name, "🔵 ");
+         strcat(channel_name, direct_messages[i]->name);
+         write_client(client->sock, channel_name);
+      }
+   }
+
+   if(exists == 0){
+      write_client(client->sock, "(vide)\n");
+   }
 }
 
 static void print_message_serveur(Client * client, const char * buffer){
@@ -357,6 +447,7 @@ static void app(void)
             clients[nb_clients] = client;
             nb_clients++;
             write_client(client->sock, help);
+            list_messages(client);
             print_connection_serveur(client, " connected ! ");
             print_unread_messages(client);
          }else{
@@ -430,7 +521,9 @@ static void send_message_to_all_clients(Client sender, const char *buffer, char 
       {
          if(from_server == 0)
          {
-            strncpy(message, sender.name, BUF_SIZE - 1);
+            
+            strncpy(message, "(public) ", BUF_SIZE - 1);
+            strncat(message, sender.name, sizeof message - strlen(message) - 1);
             strncat(message, " : ", sizeof message - strlen(message) - 1);
          }
          strncat(message, buffer, sizeof message - strlen(message) - 1);
