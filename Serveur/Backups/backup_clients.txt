@@ -1,4 +1,2 @@
 Alice/(null)
 Bob/(null)
-Tom/(null)
-Alex/(null)

@@ -36,34 +36,47 @@ typedef struct in_addr IN_ADDR;
 #define SEND "/send"
 #define SET_CANAL "/set_canal"
 
-#include "client2.h"
+#include "client.h"
 #include "channel.h"
-#include "dm.h"
+#include "privatemessage.h"
 
 static Client* getClient(const char * client_name);
 static Channel* getChannel(const char * channel_name);
+static PrivateMessage* getPrivateMessage(const char * pm_name);
+
 static int inChannel(Client * client, Channel * channel);
-static int inDm(Client * client, Dm * direct_message);
+static int inPrivateMessage(Client * client, PrivateMessage * private_message);
+
 static void read_command(const char * buffer, Client * expediteur);
 static void exec_command(const char * command, char * arg, Client * expediteur);
+
 static void print_unread_messages(Client * client);
 static void store_unread_message(const char * unread_message, const char * destinataire);
+
 static void print_message_serveur(Client * client, const char * buffer);
 static void print_connection_serveur(Client * client, const char * status);
+
 static void list_conversations(Client *client);
+
 static void init(void);
 static void end(void);
 static void app(void);
+
 static int init_connection(void);
 static void end_connection(int sock);
+
 static int read_client(SOCKET sock, char *buffer);
 static void write_client(SOCKET sock, const char *buffer);
+
 static void send_message_to_all_clients(Client * client, const char *buffer, char from_server);
+
 static void remove_client();
 static void clear_clients();
 static void free_memory();
+
 static void load_data();
 static void store_data(int code);
+
 static void getState();
 
 #endif /* guard */

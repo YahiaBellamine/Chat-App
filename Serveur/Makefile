@@ -1,13 +1,13 @@
 CC=gcc
 
-PROGS = serveur
+PROGS = server
 
-OBJ_SERVEUR = server2.o
+OBJ_SERVEUR = server.o
 
 all: ${PROGS}
 
-serveur: ${OBJ_SERVEUR}
-	${CC} -o $@ $^
+server: ${OBJ_SERVEUR}
+	${CC} -o $@ $^ -g
 
-server2.o: server2.c
-	${CC} -c $^ -g
+server.o: server.c
+	${CC} -c $^
