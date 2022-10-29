@@ -4,4 +4,4 @@ all:
 
 clean:
 	rm ./Client/*.o ./Client/client
-	rm ./Serveur/*.o ./Serveur/serveur
+	rm ./Serveur/*.o ./Serveur/server

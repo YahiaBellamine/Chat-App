@@ -1,4 +1,0 @@
-[conv'IF] Bob : Salut tout le monde !
-[conv'IF] Alice : Salut Bob !
-[conv'IF] Bob : Merci pour l'invitation Alice !
-[conv'IF] Bob : Alice Jvais partir !

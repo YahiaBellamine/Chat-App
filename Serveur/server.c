@@ -289,7 +289,7 @@ static void print_unread_messages(Client * client){
       char notif[BUF_SIZE];
       strcpy(notif, "🔔 Vous avez ");
       strcat(notif, nbNonLus);
-      strcat(notif, " message(s) non lus:\n");
+      strcat(notif, " message(s) non lu(s):\n");
       write_client(client->sock, notif);
       fseek(fp, 0, SEEK_SET);
       int i=0;
@@ -305,8 +305,8 @@ static void print_unread_messages(Client * client){
          }
       }
       fclose(fp);
+      remove(file_name);
    }
-   remove(file_name);
 }
 
 static void store_unread_message(const char * unread_message, const char * destinataire){
@@ -525,7 +525,6 @@ static void clear_clients()
 
 static void remove_client(Client * client)
 {
-   printf("sock=%d, name=%s, channel=%s\n", client->sock, client->name, client->channel->name);
    free(client);
    nb_clients--;
 }
