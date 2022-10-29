@@ -9,28 +9,38 @@
 #include "channel.h"
 #include "privatemessage.h"
 
+int nb_all_clients=0;
+char all_clients[MAX_CLIENTS][BUF_SIZE];
+
 int nb_clients = 0;
 Client * clients[MAX_CLIENTS];
-int nb_channels = 0;
-Channel * channels[MAX_CHANNELS];
+
 int nb_private_messages = 0;
 PrivateMessage * private_messages[MAX_PRIVATE_MESSAGES];
 
+int nb_channels = 0;
+Channel * channels[MAX_CHANNELS];
+
 const char * help = "Voici la liste des commandes possibles :\n\t/private Destinataire Message => qui permet d'envoyer un message privé au Destinataire.\n\t/create NomChannel => qui permet de créer un nouveau canal.\n\t/add NomDestinataire => qui permet d'ajouter une personne dans le canal choisi avec /join.\n\t/join NomChannel => qui permet de choisir de communiquer sur le canal NomChannel.\n\t/send Message => qui permet d'envoyer un message dans le canal choisi avec /join.\n\t/which => qui permet de savoir sur quel canal vous vous trouvez.\n\t/list => qui permet de lister vos canaux et messages privés.\n\nPar défault vous communiquez sur le canal public (message envoyé à tous les utilisateurs).\nPour revenir au canal public entrez : /join public\n";
+
+static int registerClient(const char * client_name){
+   strcpy(all_clients[nb_all_clients], client_name);
+   nb_all_clients++;
+}
+
+static int isRegistred(const char * client_name){
+   for(int i=0; i< nb_all_clients; i++){
+      if(strcmp(all_clients[i], client_name)==0){
+         return 1;
+      }
+   }
+   return 0;
+}
 
 static Client* getClient(const char * client_name){
    for(int i=0; i< nb_clients; i++){
       if(strcmp(clients[i]->name, client_name)==0){
          return clients[i];
-      }
-   }
-   return NULL;
-}
-
-static Channel* getChannel(const char * channel_name){
-   for(int i=0; i< nb_channels; i++){
-      if(strcmp(channels[i]->name, channel_name)==0){
-         return channels[i];
       }
    }
    return NULL;
@@ -45,6 +55,24 @@ static PrivateMessage* getPrivateMessage(const char * pm_name){
    return NULL;
 }
 
+static Channel* getChannel(const char * channel_name){
+   for(int i=0; i< nb_channels; i++){
+      if(strcmp(channels[i]->name, channel_name)==0){
+         return channels[i];
+      }
+   }
+   return NULL;
+}
+
+static int inPrivateMessage(Client * client, PrivateMessage * private_message){
+   for(int i=0; i<2; i++){
+      if(strcmp(client->name, private_message->recipients[i])==0){
+         return 1;
+      }
+   }
+   return 0;
+}
+
 static int inChannel(Client * client, Channel * channel){
    if(strcmp(client->name, channel->owner)==0){
       return 1;
@@ -53,15 +81,6 @@ static int inChannel(Client * client, Channel * channel){
          if(strcmp(client->name, channel->recipients[i])==0){
             return 1;
          }
-      }
-   }
-   return 0;
-}
-
-static int inPrivateMessage(Client * client, PrivateMessage * private_message){
-   for(int i=0; i<2; i++){
-      if(strcmp(client->name, private_message->recipients[i])==0){
-         return 1;
       }
    }
    return 0;
@@ -115,20 +134,19 @@ static void exec_command(const char * command, char * arg, Client * expediteur){
          FILE * f = fopen(file_name, "a");
          fclose(f);
       }else{
-         write_client(expediteur->sock, "Le nom du channel existe déjà !\n");
+         write_client(expediteur->sock, "/!\\ Le nom du channel existe déjà /!\\\n");
       }
    } else if (strcmp(command, "/add")==0) {
       Channel * ch = expediteur->channel;
       if(ch != NULL && strcmp(expediteur->name, ch->owner)==0){
-         Client * c = getClient(arg);
-         if(c != NULL){
-            strcpy(ch->recipients[ch->nb_recipients], c->name);
+         if(isRegistred(arg)==1){
+            strcpy(ch->recipients[ch->nb_recipients], arg);
             ch->nb_recipients++;
          }else{
             write_client(expediteur->sock, "Ce destinataire n'existe pas !\n");
          }
       } else {
-         write_client(expediteur->sock, "/!\\ Vous n'êtes pas le propriétaire du canal ou n'avez pas choisi de canal /!\\\n");
+         write_client(expediteur->sock, "/!\\ Vous n'êtes pas le propriétaire du canal ou vous n'êtes pas placé sur ce canal /!\\\n");
       }
    } else if (strcmp(command, "/join")==0){
       if(strcmp(arg, "public")==0){
@@ -331,10 +349,7 @@ static void print_connection_serveur(Client * client, const char * status){
 }
 
 static void list_conversations(Client *client){
-   write_client(client->sock, "Liste de vos conversations :\n");
-   write_client(client->sock, "👪 Groupe\n");
-   write_client(client->sock, "🔒 Privé\n\n");
-   write_client(client->sock, "-------------------------\n");
+   write_client(client->sock, "Liste de vos conversations :\n--------------------------\n");
    int exists = 0;
    for (int i = 0; i < nb_channels; i++)
    {
@@ -347,7 +362,6 @@ static void list_conversations(Client *client){
          write_client(client->sock, channel_name);
       }
    }
-
    for (int i = 0; i < nb_private_messages; i++)
    {
       if(inPrivateMessage(client, private_messages[i])==1){
@@ -359,11 +373,10 @@ static void list_conversations(Client *client){
          write_client(client->sock, channel_name);
       }
    }
-
    if(exists == 0){
       write_client(client->sock, "(vide)\n");
    }
-   write_client(client->sock, "-------------------------\n");
+   write_client(client->sock, "--------------------------\n");
 }
 
 static void print_message_serveur(Client * client, const char * buffer){
@@ -457,23 +470,20 @@ static void app(void)
 
          FD_SET(csock, &rdfs);
 
-         Client * c = getClient(buffer);
-         if(c==NULL){
-            Client * client = (Client *)malloc(sizeof(Client));
-            client->sock = csock;
-            strncpy(client->name, buffer, BUF_SIZE - 1);
-            client->channel = NULL;
-            clients[nb_clients] = client;
-            nb_clients++;
-            write_client(client->sock, help);
-            print_unread_messages(client);
-            print_connection_serveur(client, " connected ! ");
-         }else{
-            c->sock = csock;
-            write_client(c->sock, help);
-            print_unread_messages(c);
-            print_connection_serveur(c, " connected ! ");
+         Client * client = (Client *)malloc(sizeof(Client));
+         client->sock = csock;
+         strncpy(client->name, buffer, BUF_SIZE - 1);
+         client->channel = NULL;
+         clients[nb_clients] = client;
+         nb_clients++;
+         write_client(client->sock, help);
+         print_unread_messages(client);
+         print_connection_serveur(client, " connected ! ");
+         if(isRegistred(client->name)==0){
+            registerClient(client->name);
          }
+
+         getState();
       }
       else
       {
@@ -498,7 +508,8 @@ static void app(void)
                   send_message_to_all_clients(client, buffer, 1);
                   print_connection_serveur(client, " disconnected !");
                   closesocket(client->sock);
-                  remove_client(client);
+                  remove_client(client, i);
+                  getState();
                }
                else
                {
@@ -523,9 +534,12 @@ static void clear_clients()
    }
 }
 
-static void remove_client(Client * client)
+static void remove_client(Client * client, int to_remove)
 {
+   /* We free the memory space allocated for client */
    free(client);
+   /* we remove the client pointer in the array of clients */
+   memmove(clients + to_remove, clients + to_remove + 1, (nb_clients - to_remove - 1) * sizeof(Client *));
    nb_clients--;
 }
 
@@ -625,19 +639,19 @@ static void write_client(SOCKET sock, const char *buffer)
 
 static void getState(){
    printf("------------------------------\n");
+   for (int i = 0; i < nb_clients; i++)
+   {
+      printf("- Client %d\n", i+1);
+      printf("*name : %s.\n", clients[i]->name);
+      printf("*sock : %d\n", clients[i]->sock);
+      printf("*channel : %s\n\n", clients[i]->channel->name);
+   }
    for (int i = 0; i < nb_private_messages; i++)
    {
       printf("- Private message %d\n", i+1);
       printf("*name : %s\n", private_messages[i]->name);
       printf("*recipient 1 : %s.\n", private_messages[i]->recipients[0]);
       printf("*recipient 2 : %s.\n\n", private_messages[i]->recipients[1]);
-   }
-   for (int i = 0; i < nb_clients; i++)
-   {
-      printf("- Client %d\n", i+1);
-      printf("*sock : %d\n", clients[i]->sock);
-      printf("*name : %s.\n", clients[i]->name);
-      printf("*channel : %s\n\n", clients[i]->channel->name);
    }
    for (int i = 0; i < nb_channels; i++)
    {
@@ -674,9 +688,9 @@ static void free_memory(){
 static void load_data() {
    printf("Loading data...\n");
 
-   // Reading the number of clients, the number of channels and the number of private messages
    char * line = (char *) malloc( BUF_SIZE );
 
+   // Reading the number of channels and the number of private messages
    FILE * fp = fopen("./Backups/backup_params.txt", "r");
    if(fp == NULL)
    {
@@ -692,11 +706,11 @@ static void load_data() {
       int j=0;
       while(token != NULL){
          if(j==0){
-            nb_clients = atoi(token);
-         }else if(j==1) {
-            nb_channels = atoi(token);
-         }else{
+            nb_all_clients = atoi(token);
+         }else if(j==1){
             nb_private_messages = atoi(token);
+         }else{
+            nb_channels = atoi(token);
          }
          token = strtok(NULL, delim);
          j++;
@@ -704,78 +718,25 @@ static void load_data() {
    }
 
    fclose(fp);
-
-   // Reading existing channels 
-   FILE * fch = fopen("./Backups/backup_channels.txt", "r");
-   if(fch == NULL)
-   {
-      printf("Erreur d'ouverture du fichier: ./Backups/backup_channels.txt");   
-      exit(1);
-   }
    
-   int i = 0;
-   while (i < nb_channels && ! feof(fch)) {
-      fgets(line, BUF_SIZE, fch);
-      Channel * ch = (Channel *)malloc(sizeof(Channel));
-      const char delim[2] = "/";
-      char * token = strtok(line, delim);
-      int j=0;
-      while(token != NULL){
-         if(j==0){
-            strcpy(ch->name, token);
-         }else if (j==1) {
-            ch->nb_recipients = atoi(token);
-         }else if (j==2) {
-            strcpy(ch->owner, token);
-         }else {
-            char buffer[BUF_SIZE];
-            strcpy(buffer, token);
-            buffer[strcspn(buffer, "\n")] = 0;
-            strcpy(ch->recipients[j-3], buffer);
-         }
-         token = strtok(NULL, delim);
-         j++;
-      }
-      channels[i] = ch;
-      i++;
-   }
-
-   fclose(fch); 
-
-   // Reading existing clients
-   FILE * fc = fopen("./Backups/backup_clients.txt", "r");
+   // Reading all clients
+   FILE * fc = fopen("./clients_db.txt", "r");
    if(fc == NULL)
    {
-      printf("Erreur d'ouverture du fichier: ./Backups/backup_clients.txt");   
+      printf("Erreur d'ouverture du fichier: ./clients_db.txt");   
       exit(1);
    }
-   
-   i = 0;
-   while (!feof(fc)) {
+
+   int i = 0;
+   while (i < nb_all_clients && !feof(fc))
+   {
       fgets(line, BUF_SIZE, fc);
-      Client * c = (Client *)malloc(sizeof(Client));
-      c->sock = 0;
-      const char delim[2] = "/";
-      char * token = strtok(line, delim);
-      int j=0;
-      while(token != NULL){
-         if (j==0) {
-            strcpy(c->name, token);
-         }else {
-            token[strlen(token)-1] = '\0';
-            if(strcmp(token, "(null)")==0){
-               c->channel = NULL;
-            } else {
-               c->channel = getChannel(token);
-            }
-         }
-         token = strtok(NULL, delim);
-         j++;
-      }
-      clients[i] = c;
-      i++;
+      char client_name[BUF_SIZE];
+      strcpy(client_name, line);
+      client_name[strlen(client_name)-1] = '\0';
+      strcpy(all_clients[i], client_name);
    }
-   
+
    fclose(fc);
 
    // Reading existing private messages
@@ -787,7 +748,7 @@ static void load_data() {
    }
    
    i = 0;
-   while (!feof(fpm)) {
+   while (i < nb_private_messages && !feof(fpm)) {
       fgets(line, BUF_SIZE, fpm);
 
       PrivateMessage * pm = (PrivateMessage *)malloc(sizeof(PrivateMessage));
@@ -816,6 +777,43 @@ static void load_data() {
    
    fclose(fpm);
 
+   // Reading existing channels 
+   FILE * fch = fopen("./Backups/backup_channels.txt", "r");
+   if(fch == NULL)
+   {
+      printf("Erreur d'ouverture du fichier: ./Backups/backup_channels.txt");   
+      exit(1);
+   }
+   
+   i = 0;
+   while (i < nb_channels && ! feof(fch)) {
+      fgets(line, BUF_SIZE, fch);
+      Channel * ch = (Channel *)malloc(sizeof(Channel));
+      const char delim[2] = "/";
+      char * token = strtok(line, delim);
+      int j=0;
+      while(token != NULL){
+         if(j==0){
+            strcpy(ch->name, token);
+         }else if (j==1) {
+            ch->nb_recipients = atoi(token);
+         }else if (j==2) {
+            strcpy(ch->owner, token);
+         }else {
+            char buffer[BUF_SIZE];
+            strcpy(buffer, token);
+            buffer[strcspn(buffer, "\n")] = 0;
+            strcpy(ch->recipients[j-3], buffer);
+         }
+         token = strtok(NULL, delim);
+         j++;
+      }
+      channels[i] = ch;
+      i++;
+   }
+
+   fclose(fch);
+
    if (line)
       free(line);
    
@@ -830,12 +828,42 @@ static void store_data(int code) {
       exit(1);
    }
    char buf[8];
-   sprintf(buf, "%d", nb_clients);
-   fprintf(fp, "%s;", buf);
-   sprintf(buf, "%d", nb_channels);
+   sprintf(buf, "%d", nb_all_clients);
    fprintf(fp, "%s;", buf);
    sprintf(buf, "%d", nb_private_messages);
+   fprintf(fp, "%s;", buf);
+   sprintf(buf, "%d", nb_channels);
    fprintf(fp, "%s", buf);
+
+   FILE * fpm = fopen("./Backups/backup_pms.txt", "w");
+   if(fpm == NULL)
+   {
+      printf("Erreur d'ouverture du fichier: ./Backups/backup_pms.txt");   
+      exit(1);
+   }
+
+   for (int i = 0; i < nb_private_messages; i++)
+   {
+      fprintf(fpm, "%s/", private_messages[i]->name);
+      fprintf(fpm, "%s/", private_messages[i]->recipients[0]);
+      fprintf(fpm, "%s\n", private_messages[i]->recipients[1]);
+   }
+   
+   fclose(fpm);
+   
+   FILE * fc = fopen("./clients_db.txt", "w");
+   if(fc == NULL)
+   {
+      printf("Erreur d'ouverture du fichier: ./clients_db.txt.txt");   
+      exit(1);
+   }
+
+   for (int i = 0; i < nb_all_clients; i++)
+   {
+      fprintf(fc, "%s\n", all_clients[i]);
+   }
+   
+   fclose(fc);
 
    FILE * fch = fopen("./Backups/backup_channels.txt", "w");
    if(fch == NULL)
@@ -859,37 +887,6 @@ static void store_data(int code) {
    }
 
    fclose(fch);
-
-   FILE * fc = fopen("./Backups/backup_clients.txt", "w");
-   if(fc == NULL)
-   {
-      printf("Erreur d'ouverture du fichier: ./Backups/backup_clients.txt");   
-      exit(1);
-   }
-
-   for (int i = 0; i < nb_clients; i++)
-   {
-      fprintf(fc, "%s/", clients[i]->name);
-      fprintf(fc, "%s\n", clients[i]->channel->name);
-   }
-   
-   fclose(fc);
-
-   FILE * fpm = fopen("./Backups/backup_pms.txt", "w");
-   if(fpm == NULL)
-   {
-      printf("Erreur d'ouverture du fichier: ./Backups/backup_pms.txt");   
-      exit(1);
-   }
-
-   for (int i = 0; i < nb_private_messages; i++)
-   {
-      fprintf(fpm, "%s/", private_messages[i]->name);
-      fprintf(fpm, "%s/", private_messages[i]->recipients[0]);
-      fprintf(fpm, "%s\n", private_messages[i]->recipients[1]);
-   }
-   
-   fclose(fpm);
    
    free_memory();
 }
