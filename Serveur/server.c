@@ -274,6 +274,7 @@ static void exec_command(const char * command, char * arg, Client * expediteur){
          strcat(file_name, ".txt");
          FILE * f = fopen(file_name, "a");
          fclose(f);
+         write_client(expediteur->sock, "Channel successfully created !");
       } else if (strcmp(command, "/add")==0) {
          Channel * channel = expediteur->channel;
          if(channel != NULL){
@@ -282,6 +283,7 @@ static void exec_command(const char * command, char * arg, Client * expediteur){
                strcpy(channel->recipients[channel->nb_recipients], arg);
                channel->nb_recipients++;
                saveChannel(channel);
+               write_client(expediteur->sock, "Member successfully added !");
             }else{
                write_client(expediteur->sock, "/!\\ Ce destinataire n'existe pas ou vous avez essayé d'ajouter un destinataire existant dans le canal /!\\\n");
             }
@@ -314,6 +316,7 @@ static void exec_command(const char * command, char * arg, Client * expediteur){
                fread(buf, 1, length, fp);
                write_client(expediteur->sock, buf);
                fclose(fp);
+               write_client(expediteur->sock, "Channel joined !");
             }else{
                write_client(expediteur->sock, "/!\\ Ce canal n'existe pas ou vous n'y avez pas accès /!\\\n");
             }
@@ -350,6 +353,7 @@ static void exec_command(const char * command, char * arg, Client * expediteur){
                   }
                }
             }
+            write_client(expediteur->sock, "Message successfully sent !");
          } else {
             send_message_to_all_clients(expediteur, arg, 0);
          }
@@ -408,10 +412,10 @@ static void exec_command(const char * command, char * arg, Client * expediteur){
             } else {
                store_unread_message(str, dest);
             }
+            write_client(expediteur->sock, "Message successfully sent !");
          } else {
             write_client(expediteur->sock, "/!\\ Ce destinataire n'existe pas /!\\\n");
          }
-         
       } else if (strcmp(command, "/which")==0){
          if(expediteur->channel!=NULL){
             char str[BUF_SIZE];
@@ -427,7 +431,7 @@ static void exec_command(const char * command, char * arg, Client * expediteur){
       } else if (strcmp(command, "/help")==0) {
          write_client(expediteur->sock, help);
       } else {
-         write_client(expediteur->sock, "/!\\ Commande erronée /!\\ Utilisez /help vous avoir la liste des commandes possibles.\n");
+         write_client(expediteur->sock, "/!\\ Commande erronée /!\\ Utilisez /help pour avoir la liste des commandes possibles.\n");
       }
    }
 }
@@ -478,7 +482,7 @@ static void print_connection_serveur(Client * client, const char * status){
 }
 
 static void list_conversations(Client *client){
-   write_client(client->sock, "Liste de vos conversations :\n");
+   write_client(client->sock, "Liste de vos conversations :");
    
    int exists = 0;
 
@@ -493,7 +497,6 @@ static void list_conversations(Client *client){
             char channel_name[BUF_SIZE];
             strcpy(channel_name, "🔒 ");
             strcat(channel_name, tempPm->name);
-            strcat(channel_name, "\n");
             write_client(client->sock, channel_name);
          }
       }
@@ -505,14 +508,13 @@ static void list_conversations(Client *client){
    if(fch != NULL)
    {
       Channel * tempCh = (Channel *)malloc(sizeof(Channel));
-      while (fread(tempCh, sizeof(Client), 1, fch))
+      while (fread(tempCh, sizeof(Channel), 1, fch))
       {
          if(inChannel(client, tempCh)==1){
             exists = 1;
             char channel_name[BUF_SIZE];
             strcpy(channel_name, "👪 ");
             strcat(channel_name, tempCh->name);
-            strcat(channel_name, "\n");
             write_client(client->sock, channel_name);
          }
       }
