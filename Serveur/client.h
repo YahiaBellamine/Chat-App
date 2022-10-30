@@ -7,6 +7,8 @@ typedef struct
 {
    SOCKET sock;
    char name[BUF_SIZE];
+   char password[BUF_SIZE];
+   int isAuthentified;
    Channel * channel;
 }Client;
 

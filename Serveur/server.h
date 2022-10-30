@@ -37,14 +37,18 @@ typedef struct in_addr IN_ADDR;
 #include "channel.h"
 #include "privatemessage.h"
 
-static int registerClient(const char * client_name);
-static int isRegistred(const char * client_name);
+static void signUp(char * identifiers, Client * client);
+static void signIn(char * identifiers, Client * client);
+static Client* getUser(const char * user_name);
 
 static Client* getClient(const char * client_name);
-static PrivateMessage* getPrivateMessage(const char * pm_name);
-static Channel* getChannel(const char * channel_name);
 
+static void savePrivateMessage(PrivateMessage * private_message);
+static PrivateMessage* getPrivateMessage(const char * pm_name);
 static int inPrivateMessage(Client * client, PrivateMessage * private_message);
+
+static Channel* getChannel(const char * channel_name);
+static void saveChannel(Channel * channel);
 static int inChannel(Client * client, Channel * channel);
 
 static void read_command(const char * buffer, Client * expediteur);
@@ -72,11 +76,5 @@ static void send_message_to_all_clients(Client * client, const char *buffer, cha
 
 static void remove_client(Client * client, int to_remove);
 static void clear_clients();
-static void free_memory();
-
-static void load_data();
-static void store_data(int code);
-
-static void getState();
 
 #endif /* guard */
